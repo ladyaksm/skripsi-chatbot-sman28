@@ -4,34 +4,53 @@ from services.preprocess_service import process_text
 from services.ocr_service import extract_text
 from services.file_service import save_file
 from utils.jwt_middleware import jwt_required
-# from services.rag_service import build_index as build_rag_index
+from utils.logger import log_info, log_error
+import time
+
 
 admin_bp = Blueprint("admin", __name__)
 
 @admin_bp.route("/upload", methods=["POST"])
 @jwt_required
 def upload_file():
-    if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
+    start = time.time()
+    try : 
+        if "file" not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
 
-    file = request.files["file"]
-    filepath = save_file(file)
+        file = request.files["file"]
+        category = request.form.get("category", "lainnya")  # default kalau kosong
+        filepath = save_file(file)
 
     # --- Tahap 1: OCR (ekstrak teks dari PDF/DOCX/TXT) ---
-    raw_text = extract_text(filepath)
+        raw_text = extract_text(filepath)
 
     # --- Tahap 2: Preprocessing (bersihkan, potong, mapping ke struktur) ---
-    sections = process_text(raw_text)
+        sections = process_text(raw_text)
 
     # --- Tahap 3: Simpan ke Chroma ---
-    doc_ids = [add_doc(s["title"], s["content"]) for s in sections]
+        doc_ids = [
+           add_doc(
+               s["title"],
+               s["content"],
+               source_file=file.filename,
+               category=category )
+               for s in sections]
 
-    return jsonify({
-        "message": "File processed & added to knowledge base successfully",
-        "total_sections": len(doc_ids),
-        "document_ids": doc_ids
-    })
 
+        duration = time.time() - start
+        log_info(f"[UPLOAD SUCCESS] {file.filename} | kategori={category} | total={len(doc_ids)} | durasi={duration:.2f}s")
+    
+        return jsonify({
+            "message": f"File uploaded under category '{category}' successfully.",
+            "category": category,
+            "total_sections": len(doc_ids),
+            "document_ids": doc_ids
+            }),200
+    
+    except Exception as e:
+        log_error(f"[UPLOAD FAILED] {file.filename if 'file' in locals() else 'unknown'} | error={e}")
+        return jsonify({"error": str(e)}), 500
 
 # @admin_bp.route("/build_index", methods=["POST"])
 # @jwt_required

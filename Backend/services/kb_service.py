@@ -3,8 +3,11 @@ import json
 import chromadb
 import shutil
 from uuid import uuid4
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
+from services.embed_service import embedder
+from services.cache_service import clear_cache, cache
+from services.semantic_cache_service import r as semantic_cache
+from utils.logger import log_info, log_warning, log_error
+import time
 
 CHROMA_PATH = "./chroma_db"
 JSON_PATH = "processed/structured.json"
@@ -21,9 +24,6 @@ def get_collection():
     client = get_client()
     return client.get_or_create_collection("informasi_docs")
 
-
-# === Embedding model (bisa diganti sesuai model RAG kamu) ===
-embedder = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # --- Helper JSON ---
 def _load_json():
@@ -45,30 +45,52 @@ def list_docs():
     return _load_json()
 
 # --- Tambah dokumen baru (ke JSON + Chroma) ---
-def add_doc(title, content):
+def add_doc(title, content, source_file=None, category="lainnya"):
     data = _load_json()
     doc_id = str(uuid4())
 
-    # Simpan ke JSON
-    new_entry = {"id": doc_id, "title": title, "content": content}
+    # TTL by category
+    category = category.lower()
+    if  any(k in category for k in ["spmb", "penerimaan siswa baru", "ppdb"]):
+        expiry_days = 90
+    elif  any(k in category for k in ["prestasi", "extrakulikuler"]):
+        expiry_days = 180
+    else:
+        expiry_days = 365
+
+    new_entry = {
+        "id": doc_id,
+        "title": title,
+        "content": content,
+        "source_file": source_file,
+        "category": category,
+        "expiry_days": expiry_days
+    }
     data.append(new_entry)
     _save_json(data)
 
-    # Simpan ke Chroma (lengkap metadata dengan doc_id)
+    # Simpan ke Chroma
     collection = get_collection()
     embedding = embedder.get_text_embedding(content)
     collection.add(
         ids=[doc_id],
         documents=[content],
         embeddings=[embedding],
-        metadatas=[{"title": title, "doc_id": doc_id}]
+        metadatas=[{
+            "title": title,
+            "doc_id": doc_id,
+            "source_file": source_file,
+            "category": category,
+            "expiry_days": expiry_days
+        }]
     )
 
+    log_info(f"[INFO] Dokumen '{title}' ({category}) disimpan dengan TTL {expiry_days} hari.")
     return doc_id
-
 
 # --- Hapus dokumen ---
 def delete_doc(doc_id):
+    start = time.time()
     data = _load_json()
     new_data = [d for d in data if d["id"] != doc_id]
     _save_json(new_data)
@@ -77,14 +99,44 @@ def delete_doc(doc_id):
     try:
         # Hapus semua embedding yang punya metadata doc_id sesuai
         collection.delete(where={"doc_id": doc_id})
-        print(f"[INFO] Dokumen {doc_id} dihapus dari Chroma & JSON.")
+        duration = time.time() - start
+        log_info(f"[DELETE SUCCESS] doc_id={doc_id} | durasi={duration:.2f}s")
         debug_json_docs()
         debug_list_docs()
-        print("[DEBUG] Metadata di Chroma sebelum hapus:", collection.get(include=["metadatas"]))
+
+        meta = collection.get(include=["metadatas"])
+        log_info(f"[DEBUG] Metadata di Chroma sebelum hapus: {meta}")
+
 
     except Exception as e:
-        print(f"[WARNING] Gagal hapus dari Chroma: {e}")
+        log_error(f"[DELETE FAILED] doc_id={doc_id} | error={e}")
 
+    # Invalidate cache yang nyimpen ID dokumen ini
+    invalidate_cache_for_deleted_doc(doc_id)
+    return True
+
+# --- Invalidasi cache Redis otomatis kalau ada dokumen dihapus ---
+def invalidate_cache_for_deleted_doc(doc_id):
+    for key in cache.scan_iter("cache:*"):
+        value = cache.get(key)
+        if value and doc_id in value:
+            clear_cache(key)
+            log_info(f"[CACHE INVALIDATED] Cache '{key}' dihapus karena mengandung doc {doc_id}")
+
+     # 🔹 2️⃣ Hapus semantic cache yang nyimpen doc_id terkait
+    for key in semantic_cache.scan_iter("semcache:*"):
+        raw = semantic_cache.get(key)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)  # decode JSON string
+            related_docs = data.get("related_docs", [])
+            if doc_id in related_docs:
+                semantic_cache.delete(key)
+                log_info(f"[CACHE INVALIDATED] Cache '{key}' dihapus (semantic) karena terkait doc {doc_id}")
+        except Exception as e:
+            log_warning(f"[WARNING] Gagal decode semantic cache di {key}: {e}")
+            continue
 
 # --- Debug: Cek isi koleksi Chroma ---
 def debug_list_docs():
@@ -125,13 +177,13 @@ def clear_chroma():
     try:
         
         client.delete_collection("informasi_docs")
-        print("[INFO] Koleksi Chroma dihapus.")
+        log_info("[INFO] Koleksi Chroma dihapus.")
     except Exception as e:
-        print(f"[WARNING] Gagal hapus koleksi Chroma: {e}")
+        log_warning(f"[WARNING] Gagal hapus koleksi Chroma: {e}")
 
     # Buat ulang koleksi baru
     client.get_or_create_collection("informasi_docs")
-    print("[INFO] Koleksi Chroma dibuat ulang.")
+    log_info("[INFO] Koleksi Chroma dibuat ulang.")
 
 def clear_uploads():
     """Hapus semua file di folder uploads."""
@@ -140,7 +192,7 @@ def clear_uploads():
             shutil.rmtree(UPLOAD_FOLDER)
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     except Exception as e:
-        print(f"[WARNING] Gagal hapus folder uploads: {e}")
+        log_warning(f"[WARNING] Gagal hapus folder uploads: {e}")
 
 def reset_kb():
 
@@ -148,5 +200,5 @@ def reset_kb():
     clear_chroma()
     clear_uploads()
 
-    print("[INFO] Knowledge Base berhasil direset.")
+    log_info("[INFO] Knowledge Base berhasil direset.")
     return True
