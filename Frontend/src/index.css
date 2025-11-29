@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gradient-to-br from-neutral-50 via-primary-50 to-secondary-50 text-neutral-900 font-sans;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-neutral-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary-400 rounded-lg hover:bg-primary-500;
+}
+
+/* Utility classes */
+.container-custom {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Enhanced button and component styles with better visual hierarchy */
+.btn-primary {
+  @apply px-4 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all font-medium shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply px-4 py-2.5 bg-gradient-to-r from-secondary-300 to-secondary-400 text-neutral-900 rounded-xl hover:from-secondary-400 hover:to-secondary-500 transition-all font-medium shadow-sm;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors font-medium;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white transition-all placeholder:text-neutral-400;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-neutral-100 hover:shadow-md transition-shadow;
+}
+
+/* Chat message bubbles */
+.message-bubble {
+  @apply rounded-2xl px-4 py-3 max-w-xs lg:max-w-md xl:max-w-lg text-sm leading-relaxed;
+}
+
+.message-user {
+  @apply message-bubble bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-br-none shadow-md;
+}
+
+.message-bot {
+  @apply message-bubble bg-gradient-to-r from-neutral-100 to-neutral-50 text-neutral-900 rounded-bl-none border border-neutral-200;
+}
+
+
+@layer components {
+  .input-field {
+    @apply w-full mt-1 px-4 py-3 rounded-xl border border-neutral-300 
+    text-neutral-900 placeholder-neutral-400 text-sm
+    focus:outline-none focus:ring-2 focus:ring-primary-500 transition;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white font-semibold py-3 rounded-xl
+    hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed
+    transition;
+  }
+}
