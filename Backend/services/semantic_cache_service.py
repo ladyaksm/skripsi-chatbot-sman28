@@ -10,12 +10,17 @@ from utils.logger import log_info, log_warning
 # Setup Redis connection
 r = redis.Redis(host="localhost", port=6379, db=1, decode_responses=True)  # pakai DB 1 khusus semantic cache
 
-# --- Helper cosine similarity ---
+# query spesifik nama
+def should_skip_semantic(question: str) -> bool:
+    keywords = ["nama", "bernama", "siapa"]
+    return any(k in question.lower() for k in keywords)
+
+# Helper cosine similarity 
 def cosine_similarity(a, b):
     a, b = np.array(a), np.array(b)
     return np.dot(a, b) / (norm(a) * norm(b))
 
-# --- Simpan ke cache (embedding + jawaban) ---
+# Simpan ke cache (embedding + jawaban)
 def save_semantic_cache(question, answer, related_docs=None, expiry_days=365):
     emb = embedder.get_text_embedding(question)
 
@@ -35,9 +40,16 @@ def save_semantic_cache(question, answer, related_docs=None, expiry_days=365):
 
     log_info(f"[SEMANTIC CACHE] Simpan cache untuk: {question}")
 
-# --- Cek cache yang mirip ---
-def get_semantic_cache(question, threshold=0.85):
+# Cek cache yang mirip
+def get_semantic_cache(question, threshold=0.93):
+
+     # Skip semantic cache untuk query spesifik nama
+    if should_skip_semantic(question):
+        print("[SKIP SEMCACHE] Query spesifik nama → cari ulang dokumen")
+        return None
+    
     new_emb = embedder.get_text_embedding(question)
+    
     for key in r.scan_iter("semcache:*"):
         data = json.loads(r.get(key))
         try:
@@ -55,7 +67,7 @@ def get_semantic_cache(question, threshold=0.85):
             return data["a"]
     return None
 
-# === Hapus semua semantic cache  ===
+# Hapus semua semantic cache 
 def clear_semantic_cache():
     for key in r.scan_iter("semcache:*"):
         r.delete(key)

@@ -3,8 +3,11 @@ from services.auth_service import authenticate
 
 auth_bp = Blueprint("auth", __name__)
 
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return ("", 204)
+    
     data = request.json
     username = data.get("username")
     password = data.get("password")

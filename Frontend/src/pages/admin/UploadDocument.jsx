@@ -11,7 +11,7 @@ export default function UploadDocument() {
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
 
-  const categories = ["Profil Sekolah", "Guru", "Ekstrakurikuler", "Prestasi", "Umum"]
+  const categories = ["Profil Sekolah", "Guru", "Ekstrakurikuler", "Prestasi","spmb", "Umum"]
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
@@ -20,14 +20,14 @@ export default function UploadDocument() {
       [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       ].includes(selectedFile.type)
     ) {
       setFile(selectedFile)
       setStatus(null)
     } else {
       setFile(null)
-      setStatus({ type: "error", message: "Hanya file PDF, DOCX, atau TXT yang didukung" })
+      setStatus({ type: "error", message: "Hanya file PDF, DOCX, atau Excel yang didukung" })
     }
   }
 
@@ -45,7 +45,7 @@ export default function UploadDocument() {
     if (result.success) {
       setStatus({ type: "success", message: `${file.name} berhasil diunggah dengan kategori "${category}"` })
       setFile(null)
-      setCategory("umum")
+      setCategory(categories)
     } else {
       setStatus({ type: "error", message: result.error })
     }
@@ -79,7 +79,7 @@ export default function UploadDocument() {
                 <input
                   type="file"
                   onChange={handleFileChange}
-                  accept=".pdf,.docx,.txt"
+                  accept=".pdf,.docx,.xlsx"
                   className="hidden"
                   id="file-input"
                   disabled={loading}
@@ -87,7 +87,7 @@ export default function UploadDocument() {
                 <label htmlFor="file-input" className="cursor-pointer">
                   <Upload className="mx-auto mb-2 text-primary-600" size={32} />
                   <p className="text-neutral-600 font-medium">{file ? file.name : "Klik atau drag file ke sini"}</p>
-                  <p className="text-xs text-neutral-500 mt-1">PDF, DOCX, atau TXT (Maksimal 10MB)</p>
+                  <p className="text-xs text-neutral-500 mt-1">PDF, DOCX, atau Excel (Maksimal 10MB)</p>
                 </label>
               </div>
             </div>

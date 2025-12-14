@@ -29,7 +29,7 @@ export const uploadDocument = async (file, category) => {
     formData.append("file", file);
     formData.append("category", category);
 
-    const res = await API.post("/admin/upload", formData, {
+    const res = await apiClient.post("/admin/upload", formData, {
         headers: {
             "Content-Type": "multipart/form-data",
         }
@@ -49,13 +49,13 @@ export const fetchDocuments = async () => {
 
 // Admin: Delete
 export const deleteDocument = async (id) => {
-    const res = await API.delete(`/admin/delete/${id}`);
+    const res = await apiClient.delete(`/admin/delete/${id}`);
     return res.data;
 };
 
 // Admin: Reset KB
 export const resetKnowledgeBase = async () => {
-    const res = await API.post("/admin/reset_kb");
+    const res = await apiClient.post("/admin/reset_kb");
     return res.data;
 };
 

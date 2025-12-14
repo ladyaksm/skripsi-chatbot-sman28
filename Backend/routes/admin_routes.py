@@ -5,12 +5,14 @@ from services.ocr_service import extract_text
 from services.file_service import save_file
 from utils.jwt_middleware import jwt_required
 from utils.logger import log_info, log_error
+from services.excel_service import parse_excel
 import time
 
 
 admin_bp = Blueprint("admin", __name__)
 
-@admin_bp.route("/upload", methods=["POST"])
+
+@admin_bp.route("/upload", methods=["POST", "OPTIONS"])
 @jwt_required
 def upload_file():
     start = time.time()
@@ -19,19 +21,50 @@ def upload_file():
             return jsonify({"error": "No file uploaded"}), 400
 
         file = request.files["file"]
-        category = request.form.get("category", "lainnya")  # default kalau kosong
+        category = request.form.get("category", "lainnya") 
         filepath = save_file(file)
+        filename = file.filename.lower()
 
-    # --- Tahap 1: OCR (ekstrak teks dari PDF/DOCX/TXT) ---
+        # CEK APAKAH INI FILE EXCEL
+        if filename.endswith(".xlsx") or filename.endswith(".xls"):
+            rows = parse_excel(filepath)  # file dibaca pake Excel parser
+            doc_ids = []
+
+            for row in rows:
+                # setiap row diubah jadi 1 dokumen
+                konten = "\n".join(
+                [f"{col}: {val}" for col, val in row.items() if val]
+                )
+                
+                # masuk ke add_doc()
+                doc_ids.append(add_doc(
+                    content=konten,
+                    source_file=file.filename,
+                    category=category
+                ))
+
+            duration = time.time() - start
+            log_info(f"[UPLOAD SUCCESS - EXCEL] {file.filename} | kategori={category} | total={len(doc_ids)} | durasi={duration:.2f}s")
+
+            return jsonify({
+                "message": f"Excel uploaded under category '{category}' successfully.",
+                "category": category,
+                "total_rows": len(doc_ids),
+                "document_ids": doc_ids,
+            }), 200      
+
+
+    # OCR (ekstrak teks dari PDF/DOCX)
         raw_text = extract_text(filepath)
 
-    # --- Tahap 2: Preprocessing (bersihkan, potong, mapping ke struktur) ---
+    # Preprocessing
         sections = process_text(raw_text)
+        print(sections)
 
-    # --- Tahap 3: Simpan ke Chroma ---
+    # Simpan ke Chroma
         doc_ids = [
            add_doc(
-               s["title"],
+            #    s["title"],
                s["content"],
                source_file=file.filename,
                category=category )
@@ -45,53 +78,28 @@ def upload_file():
             "message": f"File uploaded under category '{category}' successfully.",
             "category": category,
             "total_sections": len(doc_ids),
-            "document_ids": doc_ids
+            "document_ids": doc_ids,
             }),200
     
     except Exception as e:
         log_error(f"[UPLOAD FAILED] {file.filename if 'file' in locals() else 'unknown'} | error={e}")
         return jsonify({"error": str(e)}), 500
 
-# @admin_bp.route("/build_index", methods=["POST"])
-# @jwt_required
-# def build_index_endpoint():
-#     try:
-#         result = build_rag_index()
-#         print("=== DEBUG RESULT ===")
-#         print(type(result))
-#         print(result)
-#         return jsonify({
-#            "status": "success",
-#            "message": result
-#     }), 200
-
-#     except FileNotFoundError:
-#         return jsonify({
-#             "status": "error",
-#             "message": "File structured.json tidak ditemukan. Pastikan sudah ada dokumen yang diunggah."
-#         }), 404
-#     except Exception as e:
-#         return jsonify({
-#             "status": "error",
-#             "message": f"Gagal membangun index: {str(e)}"
-#         }), 500
-
-
-@admin_bp.route("/list", methods=["GET"])
+@admin_bp.route("/list", methods=["GET" , "OPTIONS"])
 @jwt_required
 def list_docs_endpoint():
     docs = list_docs()
     return jsonify(docs)
 
 
-@admin_bp.route("/delete/<doc_id>", methods=["DELETE"])
+@admin_bp.route("/delete/<doc_id>", methods=["DELETE" , "OPTIONS"])
 @jwt_required
 def delete_doc_endpoint(doc_id):
     delete_doc(doc_id)
     return jsonify({"message": f"Dokumen dengan id {doc_id} telah dihapus"})
 
 
-@admin_bp.route("/reset_kb", methods=["POST"])
+@admin_bp.route("/reset_kb", methods=["POST", "OPTIONS"])
 @jwt_required
 def reset_kb_endpoint():
     reset_kb()

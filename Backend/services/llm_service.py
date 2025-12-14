@@ -17,7 +17,8 @@ def get_groq_client():
     try:
         groq_client = GroqClient(api_key=GROQ_API_KEY)
         GROQ_CLIENT_AVAILABLE = True
-        log_info("[INFO] Groq client aktif ✅")
+        log_info("Groq client aktif")
+
         return groq_client
     except Exception as e:
         GROQ_CLIENT_AVAILABLE = False
