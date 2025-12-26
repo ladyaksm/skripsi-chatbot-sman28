@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { RefreshCw, Trash2, AlertCircle } from "lucide-react";
 import AdminNavbar from "../../components/AdminNavbar";
-import { fetchDocuments, deleteDocument } from "../../services/api";
+import { getDocuments, deleteDocument } from "../../services/documents";
 
 export default function DocumentList() {
   const [documents, setDocuments] = useState([]);
@@ -16,7 +16,7 @@ export default function DocumentList() {
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const result = await fetchDocuments();
+      const result = await getDocuments();
 
       if (result.success) {
         setDocuments(result.data); // langsung array dari backend

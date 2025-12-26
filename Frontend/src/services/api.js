@@ -23,40 +23,40 @@ apiClient.interceptors.request.use(
   },
 )
 
-// Admin: Upload
-export const uploadDocument = async (file, category) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("category", category);
+// // Admin: Upload
+// export const uploadDocument = async (file, category) => {
+//     const formData = new FormData();
+//     formData.append("file", file);
+//     formData.append("category", category);
 
-    const res = await apiClient.post("/admin/upload", formData, {
-        headers: {
-            "Content-Type": "multipart/form-data",
-        }
-    });
+//     const res = await apiClient.post("/admin/upload", formData, {
+//         headers: {
+//             "Content-Type": "multipart/form-data",
+//         }
+//     });
 
-    return res.data;
-};
+//     return res.data;
+// };
 
-// Admin: List
-export const fetchDocuments = async () => {
-  const res = await apiClient.get("/admin/list");
-  return {
-    success: true,
-    data: res.data    // backend mengirim array of document object
-  };
-};
+// // Admin: List
+// export const fetchDocuments = async () => {
+//   const res = await apiClient.get("/admin/list");
+//   return {
+//     success: true,
+//     data: res.data    // backend mengirim array of document object
+//   };
+// };
 
-// Admin: Delete
-export const deleteDocument = async (id) => {
-    const res = await apiClient.delete(`/admin/delete/${id}`);
-    return res.data;
-};
+// // Admin: Delete
+// export const deleteDocument = async (id) => {
+//     const res = await apiClient.delete(`/admin/delete/${id}`);
+//     return res.data;
+// };
 
-// Admin: Reset KB
-export const resetKnowledgeBase = async () => {
-    const res = await apiClient.post("/admin/reset_kb");
-    return res.data;
-};
+// // Admin: Reset KB
+// export const resetKnowledgeBase = async () => {
+//     const res = await apiClient.post("/admin/reset_kb");
+//     return res.data;
+// };
 
 export default apiClient
