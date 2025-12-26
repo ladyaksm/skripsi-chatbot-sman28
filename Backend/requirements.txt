@@ -23,6 +23,7 @@ redis
 # Utils
 python-dotenv==1.2.1
 pandas
+openpyxl
 pytz
 PyJWT
 groq
